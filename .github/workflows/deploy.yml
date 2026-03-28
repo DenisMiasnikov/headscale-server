@@ -1,0 +1,110 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Setup QEMU (for multi-arch)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push headscale image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./headscale
+          file: ./headscale/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/headscale:${{ github.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/headscale:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
+            mkdir -p "$DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+
+            # Initialize/update repository with sparse checkout (only needed files)
+            if [ ! -d ".git" ]; then
+              echo "Cloning repository with sparse checkout..."
+              find . -mindepth 1 -delete
+              git clone --depth 1 --no-checkout git@github.com:${{ github.repository }}.git .
+              git sparse-checkout init --cone
+              git sparse-checkout set docker-compose.yml .env headscale/config.template.yaml nginx certbot
+              git remote set-head origin -a
+              git checkout -f
+            else
+              echo "Updating repository..."
+              git fetch --depth=1 origin main
+              git reset --hard origin/main
+              git clean -fd
+            fi
+
+            # Verify critical files exist
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "ERROR: docker-compose.yml not found after checkout!"
+              echo "Files in current directory:"
+              ls -la
+              exit 1
+            fi
+
+            # Create .env from secrets if it doesn't exist or is empty
+            if [ ! -f ".env" ] || [ ! -s ".env" ]; then
+              echo "Creating .env file from GitHub secrets..."
+              printf '%s\n' \
+                "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" \
+                "SERVER_URL=${{ secrets.SERVER_URL }}" \
+                "BASE_DOMAIN=${{ secrets.BASE_DOMAIN }}" \
+                "DEFAULT_USER=${{ secrets.DEFAULT_USER }}" \
+                "COOKIE_SECURE=${{ secrets.COOKIE_SECURE }}" \
+                "DOMAIN=${{ secrets.DOMAIN }}" \
+                "LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}" \
+                "HEADSCALE_URL=http://headscale:8080" \
+                "UI_USERNAME=${{ secrets.UI_USERNAME }}" \
+                "UI_PASSWORD=${{ secrets.UI_PASSWORD }}" \
+                "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" \
+                > .env
+            fi
+
+            # Pull latest images
+            echo "Pulling Docker images..."
+            docker compose pull
+
+            # Start all services (including nginx)
+            echo "Starting services..."
+            docker compose up -d
+
+            # Clean up unused images
+            echo "Pruning old images..."
+            docker image prune -f

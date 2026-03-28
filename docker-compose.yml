@@ -1,0 +1,78 @@
+services:
+  headscale:
+    image: ${DOCKER_USERNAME}/headscale:latest
+    container_name: headscale
+    env_file:
+      - ./.env
+    environment:
+      - SERVER_URL=${SERVER_URL}
+      - BASE_DOMAIN=${BASE_DOMAIN}
+      - DEFAULT_USER=${DEFAULT_USER}
+    volumes:
+      - ./headscale/config.template.yaml:/etc/headscale/config.template.yaml:ro
+      - ./headscale/data:/var/lib/headscale
+    networks:
+      - headscale-net
+  # for local use
+  # ports:
+  #   - "8080:8080"
+
+  ui:
+    image: ${DOCKER_USERNAME}/headscale-ui:latest
+    container_name: headscale-ui
+    env_file:
+      - ./.env
+    environment:
+      - HEADSCALE_URL=http://headscale:8080
+      - HEADSCALE_API_KEY_FILE=/var/lib/headscale/apikey.txt
+      - NODE_ENV=production
+      - COOKIE_SECURE=${COOKIE_SECURE}
+      - USERS_FILE=/var/lib/headscale/users.json
+    depends_on:
+      - headscale
+    networks:
+      - headscale-net
+    volumes:
+      - ./headscale/data:/var/lib/headscale
+
+  nginx:
+    image: nginx:alpine
+    container_name: headscale-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/https.conf.template:ro
+      - ./nginx/nginx.http.conf.template:/etc/nginx/templates/http.conf.template:ro
+      - ./nginx/entrypoint.sh:/entrypoint.sh:ro
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    depends_on:
+      - ui
+    networks:
+      - headscale-net
+    env_file:
+      - ./.env
+    environment:
+      - DOMAIN=${DOMAIN}
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: headscale-certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/entrypoint.sh:/entrypoint.sh:ro
+    env_file:
+      - ./.env
+    environment:
+      - DOMAIN=${DOMAIN}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    networks:
+      - headscale-net
+
+networks:
+  headscale-net:
+    driver: bridge

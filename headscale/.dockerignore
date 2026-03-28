@@ -1,0 +1,10 @@
+# Ignore everything by default
+*
+
+# But allow these files to be copied
+!Dockerfile
+!entrypoint.sh
+!config.template.yaml
+
+# Allow data directory (persistent storage, not built into image)
+data/

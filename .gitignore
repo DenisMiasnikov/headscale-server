@@ -1,0 +1,24 @@
+# Environment files (keep .env.example in repo)
+.env
+.env.local
+.env.*.local
+
+# Persistent data (not part of image build)
+headscale/data/
+certbot/conf/
+certbot/www/
+
+# Node modules (not used in this repo, but just in case)
+**/node_modules/
+
+# Logs
+*.log
+
+# OS/IDE
+.DS_Store
+.idea/
+
+# Lock files (optional – you might want to keep these if adding dependencies)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

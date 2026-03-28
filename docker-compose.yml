@@ -1,7 +1,10 @@
+version: '3.8'
+
 services:
   headscale:
     image: ${DOCKER_USERNAME}/headscale:latest
     container_name: headscale
+    restart: unless-stopped
     env_file:
       - ./.env
     environment:
@@ -13,13 +16,18 @@ services:
       - ./headscale/data:/var/lib/headscale
     networks:
       - headscale-net
-  # for local use
-  # ports:
-  #   - "8080:8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.headscale.rule=Host(`${DOMAIN}`) && (PathPrefix(`/key`) || PathPrefix(`/ts2021`) || PathPrefix(`/noise`) || PathPrefix(`/derp`) || PathPrefix(`/machine`))"
+      - "traefik.http.routers.headscale.entrypoints=websecure"
+      - "traefik.http.routers.headscale.tls.certresolver=le"
+      - "traefik.http.routers.headscale.priority=10"
+      - "traefik.http.services.headscale.loadbalancer.server.port=8080"
 
   ui:
     image: ${DOCKER_USERNAME}/headscale-ui:latest
     container_name: headscale-ui
+    restart: unless-stopped
     env_file:
       - ./.env
     environment:
@@ -34,44 +42,40 @@ services:
       - headscale-net
     volumes:
       - ./headscale/data:/var/lib/headscale
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ui.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.ui.entrypoints=websecure"
+      - "traefik.http.routers.ui.tls.certresolver=le"
+      - "traefik.http.routers.ui.priority=1"
+      - "traefik.http.routers.ui.middlewares=redirect-register"
+      - "traefik.http.services.ui.loadbalancer.server.port=3000"
+      - "traefik.http.middlewares.redirect-register.redirectregex.regex=^/register/([^/]+)$"
+      - "traefik.http.middlewares.redirect-register.redirectregex.replacement=/machines?key=$1"
 
-  nginx:
-    image: nginx:alpine
-    container_name: headscale-nginx
+  traefik:
+    image: traefik:v3.2
+    container_name: traefik
+    restart: unless-stopped
+    user: root
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf.template:/etc/nginx/templates/https.conf.template:ro
-      - ./nginx/nginx.http.conf.template:/etc/nginx/templates/http.conf.template:ro
-      - ./nginx/entrypoint.sh:/entrypoint.sh:ro
-      - ./certbot/www:/var/www/certbot
-      - ./certbot/conf:/etc/letsencrypt
-    depends_on:
-      - ui
+      - ./traefik.yml:/traefik.yml:ro
+      - ./acme.json:/acme.json
     networks:
       - headscale-net
-    env_file:
-      - ./.env
-    environment:
-      - DOMAIN=${DOMAIN}
-    entrypoint: ["/bin/sh", "/entrypoint.sh"]
-
-  certbot:
-    image: certbot/certbot:latest
-    container_name: headscale-certbot
-    volumes:
-      - ./certbot/www:/var/www/certbot
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/entrypoint.sh:/entrypoint.sh:ro
-    env_file:
-      - ./.env
     environment:
       - DOMAIN=${DOMAIN}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
-    entrypoint: ["/bin/sh", "/entrypoint.sh"]
-    networks:
-      - headscale-net
+    command:
+      - --configfile=/traefik.yml
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--configfile=/traefik.yml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   headscale-net:

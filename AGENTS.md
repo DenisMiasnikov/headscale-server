@@ -10,7 +10,7 @@ It describes how to build, run, extend, and maintain the Headscale + UI stack.
 This repository contains a self-hosted Headscale server infrastructure:
 
 - Headscale (SQLite backend)
-- Nginx reverse proxy with Let's Encrypt
+- Traefik reverse proxy with automatic Let's Encrypt
 - Docker Compose orchestration
 - CI/CD with automatic deployment
 
@@ -18,16 +18,33 @@ This repository manages **only the server infrastructure**. The UI is a separate
 
 Main directories:
 
-- `docker-compose.yml` – service orchestration (includes UI as external image)
+- `docker-compose.yml` – service orchestration
 - `headscale/` – Headscale configuration and persistent data
-- `nginx/` – Reverse proxy configuration
-- `certbot/` – SSL certificate automation
+- `traefik.yml` – Traefik static configuration
+- `acme.json` – Let's Encrypt certificates (created on first run)
 
 ---
 
 # Build & Run Commands
 
 ## Setup (First Time)
+
+### Option A: One-Command Install (for end users)
+
+On a fresh VPS, run:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/yourusername/headscale-server/main/install.sh | bash
+```
+
+This script automates:
+- Docker installation (if needed)
+- Configuration prompts
+- First-run setup
+
+See `install.sh --help` for advanced options.
+
+### Option B: Manual Setup (for maintainers)
 
 1. Clone this repository to your VPS or local machine.
 
@@ -37,19 +54,7 @@ Main directories:
    cp .env.example .env
    ```
 
-3. Edit `.env` with your values:
-   - Set `DOCKER_USERNAME` (your Docker Hub username)
-   - Set `DOMAIN`, `SERVER_URL`, `BASE_DOMAIN`
-   - Set admin credentials (`UI_USERNAME`, `UI_PASSWORD`)
-   - Generate a strong `SESSION_SECRET` (e.g., `openssl rand -hex 32`)
-   - Set `LETSENCRYPT_EMAIL`
-
-4. Pull and start all services:
-
-   ```bash
-   docker compose pull
-   docker compose up -d
-   ```
+3. Edit `.env` with your values...
 
 ## Operations
 
@@ -59,8 +64,7 @@ View logs:
 docker compose logs -f
 docker compose logs -f headscale
 docker compose logs -f ui
-docker compose logs -f nginx
-docker compose logs -f certbot
+docker compose logs -f traefik
 ```
 
 Stop services:

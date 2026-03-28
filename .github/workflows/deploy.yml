@@ -49,27 +49,33 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD
           script: |
             set -e
             DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
             mkdir -p "$DEPLOY_PATH"
             cd "$DEPLOY_PATH"
 
-            # Initialize/update repository with sparse checkout (only needed files)
-            if [ ! -d ".git" ]; then
-              echo "Cloning repository with sparse checkout..."
-              find . -mindepth 1 -delete
-              git clone --depth 1 --no-checkout git@github.com:${{ github.repository }}.git .
-              git sparse-checkout init --cone
-              git sparse-checkout set docker-compose.yml .env headscale/config.template.yaml nginx certbot
-              git remote set-head origin -a
-              git checkout -f
-            else
-              echo "Updating repository..."
-              git fetch --depth=1 origin main
-              git reset --hard origin/main
-              git clean -fd
+            # Docker Hub login (if credentials provided)
+            if [ -n "${DOCKER_PASSWORD:-}" ]; then
+              echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
             fi
+
+            # Initialize/update repository with sparse checkout (only needed files)
+              if [ ! -d ".git" ]; then
+                echo "Cloning repository with sparse checkout..."
+                find . -mindepth 1 -delete
+                git clone --depth 1 --no-checkout git@github.com:${{ github.repository }}.git .
+                git sparse-checkout init --cone
+                git sparse-checkout set docker-compose.yml headscale/config.template.yaml traefik.yml
+                git remote set-head origin -a
+                git checkout -f
+              else
+                echo "Updating repository..."
+                git fetch --depth=1 origin main
+                git reset --hard origin/main
+                git clean -fd
+              fi
 
             # Verify critical files exist
             if [ ! -f "docker-compose.yml" ]; then
@@ -95,6 +101,13 @@ jobs:
                 "UI_PASSWORD=${{ secrets.UI_PASSWORD }}" \
                 "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" \
                 > .env
+            fi
+
+            # Ensure acme.json exists with correct permissions for Traefik
+            if [ ! -f "acme.json" ]; then
+              echo "Creating acme.json for Traefik certificates..."
+              touch acme.json
+              chmod 600 acme.json
             fi
 
             # Pull latest images

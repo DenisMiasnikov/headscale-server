@@ -1,10 +1,42 @@
 # Headscale Server Infrastructure
 
-Self-hosted Headscale server with Nginx reverse proxy and Let's Encrypt SSL.
+Self-hosted Headscale with automatic HTTPS using Traefik reverse proxy.
 
 This repository contains **only the server infrastructure**. The UI is a separate repository (`lykabala-headscale-ui`) and is pulled as a Docker image.
 
-## Quick Start (VPS)
+---
+
+## One-Command Install (Recommended for New Users)
+
+On a fresh VPS (Ubuntu/Debian), simply run:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/yourusername/headscale-server/main/install.sh | bash
+```
+
+The script will:
+- Install Docker if not present
+- Prompt for your domain and email
+- Generate secure secrets
+- Configure and start all services
+
+After installation, visit `https://your-domain` and log in with the credentials printed at the end.
+
+**Optional flags:**
+- `--build-local` – Build Docker images locally instead of pulling from Docker Hub (slower but no registry dependency)
+- `--non-interactive` – Run without prompts (set environment variables beforehand)
+- `--skip-docker-install` – Skip Docker installation check (if already installed)
+
+Example with arguments:
+```bash
+curl -sSL https://raw.githubusercontent.com/yourusername/headscale-server/main/install.sh | bash -s -- --non-interactive --domain example.com --email admin@example.com
+```
+
+---
+
+## Manual Setup (For Maintainers / Advanced Users)
+
+If you prefer manual control or already have Docker:
 
 1. Clone the repo:
 
@@ -21,14 +53,14 @@ This repository contains **only the server infrastructure**. The UI is a separat
 
 3. Edit `.env` with your values:
    - `DOCKER_USERNAME` – your Docker Hub username
-   - `DOMAIN` – your public domain
+   - `DOMAIN` – your public domain (e.g., `homelab.example.com`)
    - `SERVER_URL` – typically `https://<DOMAIN>`
-   - `BASE_DOMAIN` – MagicDNS base (e.g. `tail.<DOMAIN>`)
-   - `DEFAULT_USER` – default namespace name
+   - `BASE_DOMAIN` – MagicDNS base domain (`tail.<DOMAIN>`)
+   - `DEFAULT_USER` – default namespace (e.g., `admin`)
    - `UI_USERNAME` / `UI_PASSWORD` – UI admin credentials
    - `SESSION_SECRET` – generate with `openssl rand -hex 32`
    - `LETSENCRYPT_EMAIL` – for SSL certificate
-   - `COOKIE_SECURE` – `true` for HTTPS, `false` for local HTTP
+   - `COOKIE_SECURE` – `true` for HTTPS, `false` for HTTP
 
 4. Pull and start services:
 
@@ -39,39 +71,42 @@ This repository contains **only the server infrastructure**. The UI is a separat
 
 5. Open the UI: `https://<your-domain>`
 
-## How It Works
+## Architecture
 
-- **Headscale**: Runs on port 8080 internally, manages the Tailscale network
-- **UI**: Separate Docker image (`yourname/headscale-ui:latest`) served via Nginx
-- **Nginx**: Reverse proxy on ports 80/443, handles SSL termination and routing
-- **Certbot**: Automatically obtains and renews Let's Encrypt certificates
+Services:
 
-The `docker-compose.yml` uses prebuilt Docker images. On first run:
-- Headscale generates its config from `headscale/config.template.yaml`
-- Creates default namespace and API key
-- Nginx starts with self-signed cert initially, then Certbot replaces it
+- **Traefik** – Reverse proxy and SSL automation (ports 80/443, Let's Encrypt)
+- **Headscale** – Tailscale coordination server (internal port 8080)
+- **UI** – Web interface (`yourname/headscale-ui:latest`)
+
+Traefik automatically:
+- Obtains and renews Let's Encrypt certificates
+- Routes HTTP to HTTPS
+- Directs traffic:
+  - Headscale API paths (`/register`, `/key`, `/machine`, etc.) → `headscale:8080`
+  - All other traffic → `ui:3000`
 
 ## Environment Variables
 
 All configuration is in `.env`:
 
-| Variable | Description |
-|----------|-------------|
-| `DOCKER_USERNAME` | Docker Hub username (for pulling images) |
-| `DOMAIN` | Public domain (e.g. `homelab.example.com`) |
-| `SERVER_URL` | Full server URL (`https://<DOMAIN>`) |
-| `BASE_DOMAIN` | MagicDNS base domain (`tail.<DOMAIN>`) |
-| `DEFAULT_USER` | Default namespace (e.g. `admin`) |
-| `UI_USERNAME` | UI login username |
-| `UI_PASSWORD` | UI login password |
-| `SESSION_SECRET` | Random secret for session cookies |
-| `COOKIE_SECURE` | `true` for HTTPS, `false` for HTTP |
-| `LETSENCRYPT_EMAIL` | Email for SSL certificate notifications |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DOCKER_USERNAME` | Docker Hub username (for pulling images) | Yes |
+| `DOMAIN` | Public domain (e.g., `homelab.example.com`) | Yes |
+| `SERVER_URL` | Full server URL (`https://<DOMAIN>`) | Yes |
+| `BASE_DOMAIN` | MagicDNS base domain (`tail.<DOMAIN>`) | Yes |
+| `DEFAULT_USER` | Default namespace name | Yes |
+| `UI_USERNAME` | UI login username | Yes |
+| `UI_PASSWORD` | UI login password | Yes |
+| `SESSION_SECRET` | Random secret for session cookies | Yes |
+| `LETSENCRYPT_EMAIL` | Email for SSL certificate | Yes |
+| `COOKIE_SECURE` | `true` for HTTPS, `false` for HTTP | Yes |
 
 ## Ports
 
 - `80` – HTTP (redirects to HTTPS + ACME challenge)
-- `443` – HTTPS (UI and API)
+- `443` – HTTPS (UI and Headscale API)
 
 Headscale API (port 8080) is **not** exposed externally; only accessible through the Docker network.
 
@@ -82,8 +117,8 @@ View logs:
 ```bash
 docker compose logs -f
 docker compose logs -f headscale
-docker compose logs -f nginx
-docker compose logs -f certbot
+docker compose logs -f ui
+docker compose logs -f traefik
 ```
 
 Restart a service:
@@ -110,11 +145,11 @@ For local testing without HTTPS:
    docker compose up -d
    ```
 
-3. Access at `http://localhost`
+3. Access at `http://localhost` (Traefik will still obtain a certificate if domain is real; for localhost you may need to set `DOMAIN=localhost` and use self-signed).
 
 ### Hot-Reload Development
 
-If you want to modify the UI code locally:
+To work on the UI code locally:
 
 1. Clone the UI repository into this directory:
 
@@ -122,7 +157,7 @@ If you want to modify the UI code locally:
    git clone ../lykabala-headscale-ui ui
    ```
 
-2. Edit `docker-compose.yml`: change `image: ...` to `build: ./ui` for the `ui` service (and optionally `headscale` if you need to modify server config)
+2. Edit `docker-compose.yml`: change `image:` to `build: ./ui` for the `ui` service.
 
 3. Rebuild and start:
 
@@ -134,63 +169,68 @@ If you want to modify the UI code locally:
 
 ## CI/CD
 
-This repository's GitHub Actions (`/.github/workflows/deploy.yml`):
+Pushing to `main`/`master` in this repository triggers:
 
-- Triggers on push to `main`/`master`
-- Builds the Headscale Docker image
-- Pushes to Docker Hub with `latest` and commit SHA tags
-- Connects to your VPS via SSH
-- Pulls latest images and restarts services
+- Build and push `headscale` Docker image to Docker Hub (`latest` and commit SHA tags)
+- SSH into your VPS (secrets: `VPS_HOST`, `VPS_USERNAME`, `VPS_SSH_KEY`, `DEPLOY_PATH`)
+- Pull latest images and restart services
 
-The **UI repository** has its own CI/CD that builds and pushes `yourname/headscale-ui:latest`.
-
-Both deployments are independent. Pushing to the server repo updates the infrastructure; pushing to the UI repo updates the frontend.
+The UI is deployed independently from its own repository.
 
 ## Directory Structure
 
 ```
 headscale-server/
-├── headscale/
-│   ├── config.template.yaml   # Headscale configuration template
-│   ├── data/                  # Persistent data (SQLite, API key)
-│   ├── Dockerfile             # Headscale image build
-│   └── entrypoint.sh          # Entrypoint script
-├── nginx/
-│   ├── nginx.conf.template    # HTTPS reverse proxy config
-│   ├── nginx.http.conf.template # HTTP redirect config
-│   └── entrypoint.sh          # Generates configs and starts nginx
-├── certbot/
-│   └── entrypoint.sh          # Certbot automation script
-├── .github/workflows/
-│   └── deploy.yml             # CI/CD pipeline
-├── docker-compose.yml         # Orchestration
-├── .env.example               # Environment template
+├── headscale/           # Headscale image config and persistent data
+│   ├── config.template.yaml
+│   ├── data/            # SQLite DB, API key (persisted)
+│   ├── Dockerfile
+│   └── entrypoint.sh
+├── traefik.yml          # Traefik static configuration
+├── acme.json            # Let's Encrypt certificates (created on first run)
+├── docker-compose.yml   # Orchestration
+├── .env.example         # Environment template
 ├── README.md
-└── AGENTS.md                  # Guidelines for AI agents
+└── AGENTS.md            # Guidelines for AI agents
 ```
+
+## Traefik Details
+
+Traefik is configured via `traefik.yml`:
+
+- **Entry Points**:
+  - `web` (port 80) – redirects all traffic to HTTPS
+  - `websecure` (port 443) – TLS termination with Let's Encrypt
+- **Certificate Resolver**: `le` (Let's Encrypt) using HTTP challenge
+- **Docker Provider**: Instantly discovers services with `traefik.enable=true` label
+- **Network**: All services share `headscale-net` bridge
+
+Routers and services are defined via **Docker labels** on the `headscale` and `ui` services:
+
+- `headscale` – routes specific API paths to port 8080
+- `ui` – routes all other traffic to port 3000
 
 ## Troubleshooting
 
-**Check container status:**
+**Certificate issues?**
+- Ensure `acme.json` exists and has `600` permissions
+- Check Traefik logs: `docker compose logs traefik`
+- Verify `DOMAIN` resolves to your VPS and ports 80/443 are open
+- Delete `acme.json` and restart to force reissue (if stuck)
+
+**Containers not starting?**
 ```bash
 docker compose ps
+docker compose logs <service>
 ```
 
-**Inspect logs:**
-```bash
-docker compose logs -f <service>
-```
+**UI can't connect to Headscale?**
+- Check `docker compose ps headscale` is healthy
+- Verify `HEADSCALE_URL` environment in UI container is `http://headscale:8080`
+- Ensure both containers share `headscale-net` network
 
-**HTTPS not working?**
-- Ensure DNS points to your VPS
-- Ports 80 and 443 are open
-- `.env` has correct `DOMAIN` and `LETSENCRYPT_EMAIL`
-- The `certbot` container has written certificates to `certbot/conf/`
-
-**UI not connecting to Headscale?**
-- Verify `HEADSCALE_URL` in UI container logs
-- Check that Headscale container is healthy (`docker compose ps headscale`)
-- Ensure both containers are on the same Docker network (`headscale-net`)
+**Need to disable HTTPS temporarily?**
+Set `COOKIE_SECURE=false` and change Traefik entrypoint to serve on both HTTP/HTTPS, or use a self-signed cert.
 
 ## License
 

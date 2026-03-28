@@ -3,10 +3,10 @@
 set -euo pipefail
 
 # Default values
-DEFAULT_DOCKER_USERNAME="lykabala"
+DEFAULT_DOCKER_USERNAME="DenisMiasnikov"
 DEFAULT_UI_USERNAME="admin"
 INSTALL_DIR="${HOME}/headscale"
-REPO_URL="https://github.com/lykabala/headscale-server.git"
+REPO_URL="https://github.com/DenisMiasnikov/headscale-server.git"
 
 # Colors for output
 RED='\033[0;31m'

@@ -11,7 +11,7 @@ This repository contains **only the server infrastructure**. The UI is a separat
 On a fresh VPS (Ubuntu/Debian), simply run:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/yourusername/headscale-server/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/DenisMiasnikov/headscale-server/main/install.sh | bash
 ```
 
 The script will:

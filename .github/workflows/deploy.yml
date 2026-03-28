@@ -110,6 +110,10 @@ jobs:
               chmod 600 acme.json
             fi
 
+            # Clean up unused images before pulling to free up space
+            echo "Pruning old images..."
+            docker image prune -f || true
+
             # Pull latest images
             echo "Pulling Docker images..."
             docker compose pull
@@ -117,7 +121,3 @@ jobs:
             # Start all services (including nginx)
             echo "Starting services..."
             docker compose up -d
-
-            # Clean up unused images
-            echo "Pruning old images..."
-            docker image prune -f

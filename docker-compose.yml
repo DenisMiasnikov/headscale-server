@@ -18,11 +18,20 @@ services:
       - headscale-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.headscale.rule=Host(`${DOMAIN}`) && (PathPrefix(`/key`) || PathPrefix(`/ts2021`) || PathPrefix(`/noise`) || PathPrefix(`/derp`) || PathPrefix(`/machine`))"
+      - "traefik.http.routers.headscale.rule=Host(`${DOMAIN}`) && (PathPrefix(`/key`) || PathPrefix(`/ts2021`) || PathPrefix(`/noise`) || PathPrefix(`/derp`) || PathPrefix(`/register`) || PathPrefix(`/machine`))"
       - "traefik.http.routers.headscale.entrypoints=websecure"
       - "traefik.http.routers.headscale.tls.certresolver=le"
-      - "traefik.http.routers.headscale.priority=10"
+      - "traefik.http.routers.headscale.priority=20"
       - "traefik.http.services.headscale.loadbalancer.server.port=8080"
+      - "traefik.http.routers.headscale.middlewares=headscale-headers"
+
+      # Заголовки, которые были в Nginx
+      - "traefik.http.middlewares.headscale-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.headscale-headers.headers.customrequestheaders.X-Real-IP=client-ip"
+      - "traefik.http.middlewares.headscale-headers.headers.customrequestheaders.Upgrade=$http_upgrade"
+      - "traefik.http.middlewares.headscale-headers.headers.customrequestheaders.Connection=$connection_upgrade"
+      - "traefik.http.middlewares.headscale-headers.headers.customresponseheaders.Access-Control-Allow-Origin=*"
+      - "traefik.http.middlewares.headscale-headers.headers.customresponseheaders.Access-Control-Allow-Methods=GET,POST,PUT,DELETE,OPTIONS"
 
   ui:
     image: ${DOCKER_USERNAME}/headscale-ui:latest
@@ -47,9 +56,10 @@ services:
       - "traefik.http.routers.ui.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.ui.entrypoints=websecure"
       - "traefik.http.routers.ui.tls.certresolver=le"
-      - "traefik.http.routers.ui.priority=1"
+      - "traefik.http.routers.ui.priority=10"
       - "traefik.http.routers.ui.middlewares=redirect-register"
       - "traefik.http.services.ui.loadbalancer.server.port=3000"
+      # Редирект /register/... -> /machines?key=...
       - "traefik.http.middlewares.redirect-register.redirectregex.regex=^/register/([^/]+)$"
       - "traefik.http.middlewares.redirect-register.redirectregex.replacement=/machines?key=$1"
 
@@ -66,6 +76,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - headscale-net
+    environment:
+      - DOMAIN=${DOMAIN}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
     command:
       - --configfile=/traefik.yml
     healthcheck:

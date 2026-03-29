@@ -16,7 +16,7 @@ providers:
 certificatesResolvers:
   le:
     acme:
-      email: ${LETSENCRYPT_EMAIL}
+      email: denisreactfe@gmail.com
       storage: /acme.json
       httpChallenge:
         entryPoint: web

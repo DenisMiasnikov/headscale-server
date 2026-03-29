@@ -1,7 +1,25 @@
-# traefik.yml - минимальная рабочая конфигурация
+# traefik.yml
+log:
+  level: INFO
 
 ping:
   entryPoint: web
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: le
 
 providers:
   docker:
@@ -15,18 +33,3 @@ certificatesResolvers:
       storage: /acme.json
       httpChallenge:
         entryPoint: web
-
-entryPoints:
-  web:
-    address: ":80"
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
-          permanent: true
-  websecure:
-    address: ":443"
-    http:
-      tls:
-        certResolver: le

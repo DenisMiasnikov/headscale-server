@@ -1,4 +1,4 @@
-# traefik.yml - fully working minimal static config
+# traefik.yml - minimal working config
 
 ping:
   entryPoint: web
@@ -11,7 +11,7 @@ providers:
 certificatesResolvers:
   le:
     acme:
-      email: denisreactfe@gmail.com
+      email: denisreactfe@gmail.com     # твой email для Let's Encrypt
       storage: /acme.json
       httpChallenge:
         entryPoint: web
@@ -19,12 +19,6 @@ certificatesResolvers:
 entryPoints:
   web:
     address: ":80"
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
-          permanent: true
   websecure:
     address: ":443"
     http:

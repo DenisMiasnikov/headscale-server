@@ -1,12 +1,16 @@
 # Traefik static configuration
 
-# API (dashboard) - disabled in production, enable for debugging if needed
+# Enable ping for healthcheck
+ping:
+  entryPoint: web
+
+# API / dashboard (optional, enable only for debugging)
 # api:
 #   insecure: true
 
 providers:
   docker:
-    exposedByDefault: false  # Only containers with explicit label are exposed
+    exposedByDefault: false
     network: headscale-net
 
 certificatesResolvers:

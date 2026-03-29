@@ -54,7 +54,7 @@ services:
       - "traefik.http.middlewares.redirect-register.redirectregex.replacement=/machines?key=$1"
 
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.2
     container_name: traefik
     restart: unless-stopped
     ports:
@@ -69,6 +69,7 @@ services:
     environment:
       - DOMAIN=${DOMAIN}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+      - DOCKER_HOST=unix:///var/run/docker.sock
     command:
       - --configfile=/traefik.yml
     healthcheck:

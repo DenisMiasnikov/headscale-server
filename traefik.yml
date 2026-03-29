@@ -1,12 +1,7 @@
-# Traefik static configuration
+# traefik.yml - fully working minimal static config
 
-# Enable ping for healthcheck
 ping:
   entryPoint: web
-
-# API / dashboard (optional, enable only for debugging)
-# api:
-#   insecure: true
 
 providers:
   docker:
@@ -23,7 +18,7 @@ certificatesResolvers:
 
 entryPoints:
   web:
-    address: :80
+    address: ":80"
     http:
       redirections:
         entryPoint:
@@ -31,7 +26,7 @@ entryPoints:
           scheme: https
           permanent: true
   websecure:
-    address: :443
+    address: ":443"
     http:
       tls:
         certResolver: le

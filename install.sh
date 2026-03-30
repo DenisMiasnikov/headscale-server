@@ -78,21 +78,26 @@ prompt() {
     local prompt_msg="$1"
     local default="$2"
     local var_name="$3"
+    local input
 
     if [ "$INTERACTIVE" = true ]; then
         if [ -n "$default" ]; then
-            read -p "$prompt_msg [$default]: " input
-            eval "$var_name=\${input:-$default}"
+            read -r -p "$prompt_msg [$default]: " input </dev/tty
+            if [ -n "$input" ]; then
+                printf -v "$var_name" "%s" "$input"
+            else
+                printf -v "$var_name" "%s" "$default"
+            fi
         else
-            read -p "$prompt_msg: " input
-            eval "$var_name=\$input"
+            read -r -p "$prompt_msg: " input </dev/tty
+            printf -v "$var_name" "%s" "$input"
         fi
     else
         # Non-interactive: use env var or default
         if [ -n "${!var_name:-}" ]; then
-            eval "$var_name=\${!var_name}"
+            printf -v "$var_name" "%s" "${!var_name}"
         elif [ -n "$default" ]; then
-            eval "$var_name=$default"
+            printf -v "$var_name" "%s" "$default"
         else
             log_error "Non-interactive mode requires $var_name environment variable"
             exit 1
@@ -103,16 +108,18 @@ prompt() {
 prompt_hidden() {
     local prompt_msg="$1"
     local var_name="$2"
+    local input
 
     if [ "$INTERACTIVE" = true ]; then
-        read -s -p "$prompt_msg: " input
+        read -r -s -p "$prompt_msg: " input </dev/tty
         echo
-        eval "$var_name=\$input"
+        printf -v "$var_name" "%s" "$input"
     else
         if [ -z "${!var_name:-}" ]; then
             log_error "Non-interactive mode requires $var_name environment variable"
             exit 1
         fi
+        printf -v "$var_name" "%s" "${!var_name}"
     fi
 }
 

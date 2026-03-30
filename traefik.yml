@@ -24,7 +24,7 @@ entryPoints:
 providers:
   docker:
     exposedByDefault: false
-    network: headscale-net
+    network: headscale_headscale-net
 
 certificatesResolvers:
   le:

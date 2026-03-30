@@ -18,7 +18,7 @@ services:
       - headscale-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.headscale.rule=Host(`${DOMAIN}`) && (PathPrefix(`/key`) || PathPrefix(`/ts2021`) || PathPrefix(`/noise`) || PathPrefix(`/derp`) || Path('/machine') || PathPrefix(`/machine`))"
+      - "traefik.http.routers.headscale.rule=Host(`${DOMAIN}`) && (PathPrefix(`/key`) || PathPrefix(`/ts2021`) || PathPrefix(`/noise`) || PathPrefix(`/derp`) || Path(`/machine`) || PathPrefix(`/machine/`))"
       - "traefik.http.routers.headscale.entrypoints=websecure"
       - "traefik.http.routers.headscale.tls.certresolver=le"
       - "traefik.http.routers.headscale.priority=10"

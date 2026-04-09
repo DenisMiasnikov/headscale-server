@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-CONFIG_TEMPLATE="/etc/headscale/config.template.yaml"
+CONFIG_TEMPLATE="/etc/headscale/config.yaml"
 CONFIG_FILE="/etc/headscale/config.yaml"
 DATA_DIR="/var/lib/headscale"
 API_KEY_FILE="$DATA_DIR/apikey.txt"

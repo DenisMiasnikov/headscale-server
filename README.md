@@ -182,7 +182,7 @@ The UI is deployed independently from its own repository.
 ```
 headscale-server/
 ├── headscale/           # Headscale image config and persistent data
-│   ├── config.template.yaml
+│   ├── config.yaml
 │   ├── data/            # SQLite DB, API key (persisted)
 │   ├── Dockerfile
 │   └── entrypoint.sh

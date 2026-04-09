@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   postgres:
     image: postgres:15
@@ -31,9 +29,11 @@ services:
     environment:
       - SERVER_URL=${SERVER_URL}
       - BASE_DOMAIN=${BASE_DOMAIN}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - DEFAULT_USER=${DEFAULT_USER}
     volumes:
-      - ./headscale/config.yaml:/etc/headscale/config.yaml:ro
+      - ./headscale/config.yaml:/etc/headscale/config.yaml
       - ./headscale/data:/var/lib/headscale
     networks:
       - headscale-net

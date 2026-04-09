@@ -8,9 +8,18 @@ API_KEY_FILE="$DATA_DIR/apikey.txt"
 SOCKET_DIR="/var/run/headscale"
 SOCKET_FILE="$SOCKET_DIR/headscale.sock"
 
-# Generate config.yaml from template
 if [ -f "$CONFIG_TEMPLATE" ]; then
-  envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
+  echo "DEBUG: SERVER_URL=$SERVER_URL"
+  echo "DEBUG: BASE_DOMAIN=$BASE_DOMAIN"
+  echo "DEBUG: POSTGRES_USER=$POSTGRES_USER"
+  cat "$CONFIG_TEMPLATE"
+  (
+    export SERVER_URL BASE_DOMAIN POSTGRES_USER POSTGRES_PASSWORD DEFAULT_USER
+    envsubst < "$CONFIG_TEMPLATE" > /tmp/config.yaml
+  )
+  echo "DEBUG: Generated config:"
+  cat /tmp/config.yaml
+  mv /tmp/config.yaml "$CONFIG_FILE"
 fi
 
 # Ensure necessary directories exist

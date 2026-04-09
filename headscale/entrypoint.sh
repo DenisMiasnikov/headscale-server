@@ -2,24 +2,21 @@
 set -e
 
 CONFIG_TEMPLATE="/etc/headscale/config.yaml"
-CONFIG_FILE="/etc/headscale/config.yaml"
 DATA_DIR="/var/lib/headscale"
+CONFIG_FILE="$DATA_DIR/config.yaml"
 API_KEY_FILE="$DATA_DIR/apikey.txt"
 SOCKET_DIR="/var/run/headscale"
 SOCKET_FILE="$SOCKET_DIR/headscale.sock"
 
+mkdir -p "$DATA_DIR"
+mkdir -p "$SOCKET_DIR"
+
 if [ -f "$CONFIG_TEMPLATE" ]; then
   echo "DEBUG: SERVER_URL=$SERVER_URL"
-  echo "DEBUG: CONFIG_TEMPLATE exists at $CONFIG_TEMPLATE"
-  echo "DEBUG: Template content (first 5 lines):"
-  head -n 5 "$CONFIG_TEMPLATE"
   export SERVER_URL BASE_DOMAIN POSTGRES_USER POSTGRES_PASSWORD DEFAULT_USER
-  envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_TEMPLATE.tmp"
-  echo "DEBUG: Temp file content (first 5 lines):"
-  head -n 5 "$CONFIG_TEMPLATE.tmp"
-  mv "$CONFIG_TEMPLATE.tmp" "$CONFIG_TEMPLATE"
+  envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
   echo "=== Generated config start ==="
-  cat "$CONFIG_TEMPLATE"
+  cat "$CONFIG_FILE"
   echo "=== Generated config end ==="
 else
   echo "ERROR: CONFIG_TEMPLATE not found at $CONFIG_TEMPLATE"

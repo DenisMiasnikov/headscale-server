@@ -18,10 +18,14 @@ derp:
   update_frequency: 3h
 
 database:
-  type: sqlite
-  sqlite:
-    path: /var/lib/headscale/db.sqlite
-    write_ahead_log: true
+  type: postgres
+  postgres:
+    host: postgres
+    port: 5432
+    name: headscale
+    user: ${POSTGRES_USER}
+    pass: ${POSTGRES_PASSWORD}
+    ssl: disable
 
 log:
   level: info

@@ -1,25 +1,28 @@
 #!/bin/sh
 set -e
 
-CONFIG_TEMPLATE="/etc/headscale/config.template.yaml"
-CONFIG_FILE="/etc/headscale/config.yaml"
+CONFIG_TEMPLATE="/etc/headscale/config.yaml"
 DATA_DIR="/var/lib/headscale"
+CONFIG_FILE="$DATA_DIR/config.yaml"
 API_KEY_FILE="$DATA_DIR/apikey.txt"
 SOCKET_DIR="/var/run/headscale"
 SOCKET_FILE="$SOCKET_DIR/headscale.sock"
 
-if [ -f "$CONFIG_TEMPLATE" ]; then
-  envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
-fi
-
 mkdir -p "$DATA_DIR"
 mkdir -p "$SOCKET_DIR"
 
+if [ -f "$CONFIG_TEMPLATE" ]; then
+  export SERVER_URL BASE_DOMAIN POSTGRES_USER POSTGRES_PASSWORD DEFAULT_USER
+  envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
+fi
+
 DEFAULT_USER="${DEFAULT_USER:-default}"
 
+# Start Headscale in background
 headscale serve --config "$CONFIG_FILE" &
 HEADSCALE_PID=$!
 
+# Wait for unix socket to appear (if using it)
 for i in $(seq 1 30); do
   if [ -S "$SOCKET_FILE" ]; then
     break
@@ -27,22 +30,23 @@ for i in $(seq 1 30); do
   sleep 1
 done
 
+# Create default user if it doesn't exist
 if ! headscale --config "$CONFIG_FILE" users list | grep -q "${DEFAULT_USER}"; then
   headscale --config "$CONFIG_FILE" users create "$DEFAULT_USER"
 fi
 
-# Ensure at least one API key exists and is saved to the file
-# Check if any API keys exist in the database by looking for "prefix" in JSON output
+# Ensure at least one API key exists and save it to file
 if ! headscale --config "$CONFIG_FILE" apikey list --output json 2>/dev/null | grep -q '"prefix"'; then
   echo "No API keys found in database. Creating a new one..."
   API_KEY=$(headscale --config "$CONFIG_FILE" apikeys create)
   printf "%s" "$API_KEY" > "$API_KEY_FILE"
   chmod 600 "$API_KEY_FILE"
 elif [ ! -f "$API_KEY_FILE" ]; then
-  # API keys exist in DB but no file (shouldn't happen), create a new one anyway
+  # API keys exist in DB but file is missing
   API_KEY=$(headscale --config "$CONFIG_FILE" apikeys create)
   printf "%s" "$API_KEY" > "$API_KEY_FILE"
   chmod 600 "$API_KEY_FILE"
 fi
 
+# Wait for Headscale process
 wait "$HEADSCALE_PID"

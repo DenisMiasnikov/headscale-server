@@ -67,7 +67,7 @@ jobs:
                 find . -mindepth 1 -delete
                 git clone --depth 1 --no-checkout git@github.com:${{ github.repository }}.git .
                 git sparse-checkout init --cone
-                git sparse-checkout set docker-compose.yml headscale/config.template.yaml traefik.yml
+                git sparse-checkout set docker-compose.yml headscale/config.yaml traefik.yml
                 git remote set-head origin -a
                 git checkout -f
               else
@@ -97,6 +97,8 @@ jobs:
                 "DOMAIN=${{ secrets.DOMAIN }}" \
                 "LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}" \
                 "HEADSCALE_URL=http://headscale:8080" \
+                "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" \
+                "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" \
                 "UI_USERNAME=${{ secrets.UI_USERNAME }}" \
                 "UI_PASSWORD=${{ secrets.UI_PASSWORD }}" \
                 "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" \

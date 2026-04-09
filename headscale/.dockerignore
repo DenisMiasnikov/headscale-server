@@ -5,7 +5,7 @@
 # But allow these files to be copied
 !Dockerfile
 !entrypoint.sh
-!config.template.yaml
+!config.yaml
 
 # Allow data directory (persistent storage, not built into image)
 data/

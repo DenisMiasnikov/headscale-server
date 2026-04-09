@@ -1,60 +1,53 @@
 #!/bin/sh
 set -e
 
-# Directories and files
+CONFIG_TEMPLATE="/etc/headscale/config.yaml"
+CONFIG_FILE="/etc/headscale/config.yaml"
 DATA_DIR="/var/lib/headscale"
-CONFIG_FILE="$DATA_DIR/config.yaml"
-NOISE_KEY="$DATA_DIR/noise_private.key"
 API_KEY_FILE="$DATA_DIR/apikey.txt"
 SOCKET_DIR="/var/run/headscale"
 SOCKET_FILE="$SOCKET_DIR/headscale.sock"
 
+# Generate config.yaml from template
+if [ -f "$CONFIG_TEMPLATE" ]; then
+  envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
+fi
+
+# Ensure necessary directories exist
 mkdir -p "$DATA_DIR"
 mkdir -p "$SOCKET_DIR"
 
-# Generate noise key if missing
-if [ ! -f "$NOISE_KEY" ]; then
-    echo "Generating noise private key..."
-    headscale generate-noise-key > "$NOISE_KEY"
-    chmod 600 "$NOISE_KEY"
-fi
-
-# Generate config file from template
-if [ -f "/etc/headscale/config.yaml" ]; then
-    echo "Generating config.yaml from template..."
-    export NOISE_PRIVATE_KEY_PATH="$NOISE_KEY"
-    envsubst < /etc/headscale/config.yaml > "$CONFIG_FILE"
-fi
-
 DEFAULT_USER="${DEFAULT_USER:-default}"
 
-# Start headscale in background
+# Start Headscale in background
 headscale serve --config "$CONFIG_FILE" &
 HEADSCALE_PID=$!
 
-# Wait for unix socket
+# Wait for unix socket to appear (if using it)
 for i in $(seq 1 30); do
-    if [ -S "$SOCKET_FILE" ]; then
-        break
-    fi
-    sleep 1
+  if [ -S "$SOCKET_FILE" ]; then
+    break
+  fi
+  sleep 1
 done
 
-# Ensure default user exists
+# Create default user if it doesn't exist
 if ! headscale --config "$CONFIG_FILE" users list | grep -q "${DEFAULT_USER}"; then
-    headscale --config "$CONFIG_FILE" users create "$DEFAULT_USER"
+  headscale --config "$CONFIG_FILE" users create "$DEFAULT_USER"
 fi
 
-# Ensure at least one API key exists
+# Ensure at least one API key exists and save it to file
 if ! headscale --config "$CONFIG_FILE" apikey list --output json 2>/dev/null | grep -q '"prefix"'; then
-    echo "No API keys found in database. Creating a new one..."
-    API_KEY=$(headscale --config "$CONFIG_FILE" apikeys create)
-    printf "%s" "$API_KEY" > "$API_KEY_FILE"
-    chmod 600 "$API_KEY_FILE"
+  echo "No API keys found in database. Creating a new one..."
+  API_KEY=$(headscale --config "$CONFIG_FILE" apikeys create)
+  printf "%s" "$API_KEY" > "$API_KEY_FILE"
+  chmod 600 "$API_KEY_FILE"
 elif [ ! -f "$API_KEY_FILE" ]; then
-    API_KEY=$(headscale --config "$CONFIG_FILE" apikeys create)
-    printf "%s" "$API_KEY" > "$API_KEY_FILE"
-    chmod 600 "$API_KEY_FILE"
+  # API keys exist in DB but file is missing
+  API_KEY=$(headscale --config "$CONFIG_FILE" apikeys create)
+  printf "%s" "$API_KEY" > "$API_KEY_FILE"
+  chmod 600 "$API_KEY_FILE"
 fi
 
+# Wait for Headscale process
 wait "$HEADSCALE_PID"

@@ -10,14 +10,11 @@ SOCKET_FILE="$SOCKET_DIR/headscale.sock"
 
 if [ -f "$CONFIG_TEMPLATE" ]; then
   echo "DEBUG: SERVER_URL=$SERVER_URL"
-  echo "DEBUG: BASE_DOMAIN=$BASE_DOMAIN"
-  echo "DEBUG: POSTGRES_USER=$POSTGRES_USER"
-  (
-    export SERVER_URL BASE_DOMAIN POSTGRES_USER POSTGRES_PASSWORD DEFAULT_USER
-    envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_FILE"
-  )
-  echo "DEBUG: Generated config:"
-  cat "$CONFIG_FILE"
+  export SERVER_URL BASE_DOMAIN POSTGRES_USER POSTGRES_PASSWORD DEFAULT_USER
+  envsubst < "$CONFIG_TEMPLATE" > "$CONFIG_TEMPLATE"
+  echo "=== Generated config start ==="
+  cat "$CONFIG_TEMPLATE"
+  echo "=== Generated config end ==="
 fi
 
 # Ensure necessary directories exist

@@ -6,7 +6,7 @@ RUN apk add --no-cache gettext ca-certificates
 
 COPY --from=headscale-bin /ko-app/headscale /usr/local/bin/headscale
 COPY entrypoint.sh /entrypoint.sh
-COPY config.template.yaml /etc/headscale/config.template.yaml
+COPY config.yaml /etc/headscale/config.yaml
 
 RUN chmod +x /entrypoint.sh
 

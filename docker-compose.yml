@@ -80,6 +80,7 @@ services:
       - "traefik.http.routers.ui.tls.certresolver=le"
       - "traefik.http.routers.ui.priority=15"
       - "traefik.http.routers.ui.middlewares=redirect-root,redirect-register"
+      - "traefik.http.routers.ui.service=ui"
       - "traefik.http.middlewares.redirect-root.redirectregex.regex=^/$"
       - "traefik.http.middlewares.redirect-root.redirectregex.replacement=/login"
       - "traefik.http.middlewares.redirect-root.redirectregex.permanent=true"

@@ -42,7 +42,7 @@ services:
       - "traefik.http.routers.headscale.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api/`) || PathPrefix(`/key`) || PathPrefix(`/ts2021`) || PathPrefix(`/swagger`) || PathPrefix(`/version`) || PathPrefix(`/noise`) || PathPrefix(`/derp`) || Path(`/machine`) || PathPrefix(`/machine/`))"
       - "traefik.http.routers.headscale.entrypoints=websecure"
       - "traefik.http.routers.headscale.tls.certresolver=le"
-      - "traefik.http.routers.headscale.priority=10"
+      - "traefik.http.routers.headscale.priority=25"
       - "traefik.http.services.headscale.loadbalancer.server.port=8080"
 
   ui:
@@ -74,7 +74,7 @@ services:
       - "traefik.http.routers.ui-api.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api/internal`))"
       - "traefik.http.routers.ui-api.entrypoints=websecure"
       - "traefik.http.routers.ui-api.tls.certresolver=le"
-      - "traefik.http.routers.ui-api.priority=20"
+      - "traefik.http.routers.ui-api.priority=30"
       - "traefik.http.routers.ui.rule=Host(`${DOMAIN}`) && PathPrefix(`/`)"
       - "traefik.http.routers.ui.entrypoints=websecure"
       - "traefik.http.routers.ui.tls.certresolver=le"
